@@ -1,0 +1,168 @@
+schema_version: "1.0"
+ruleset:
+  id: invoice-validation-vn
+  version: 1.1.0-draft
+  status: draft
+  effective_from: 2026-07-20
+  owner: business-compliance
+  author: engineering-seed
+  reviewer: null
+  approver: null
+  changelog: "Bind machine-verified PDF locators and expose a fail-safe decision summary; legal approval remains pending."
+  rollback_target: null
+  legal_snapshot: "2026-07-20"
+  notes: >-
+    Technical rules for development only. A legal/accounting specialist must
+    confirm scope, effective dates, exceptions and exact locators before approval.
+
+rules:
+  - id: INV_REQUIRED_FIELDS
+    version: 1.0.0-draft
+    status: draft
+    description: Required identity fields must be present.
+    severity: high
+    required_fields: [invoice_number, invoice_date, seller_tax_code]
+    failure_code: FORMAT_MISSING_FIELD
+    requires_human_review: true
+    legal_basis:
+      - {
+          document_id: VN-INV-123-2020-NDCP,
+          locator: "Trang 14-17 · Điều 10. Nội dung của hóa đơn",
+        }
+      - {
+          document_id: VN-INV-70-2025-NDCP,
+          locator: "Trang 9-12 · Điều 1 khoản 7 (sửa đổi Điều 10 Nghị định 123/2020/NĐ-CP)",
+        }
+      - {
+          document_id: VN-INV-32-2025-TTBTC,
+          locator: "Trang 4-6 · Điều 5. Ký hiệu mẫu số, ký hiệu hóa đơn, tên liên hóa đơn",
+        }
+    tests:
+      {
+        positive: required-fields-valid,
+        negative: missing-tax-code,
+        boundary: blank-symbol,
+      }
+
+  - id: INV_SUBTOTAL_EQUALS_LINE_SUM
+    version: 1.0.0-draft
+    status: draft
+    description: Subtotal must match the sum of invoice lines within rounding tolerance.
+    severity: high
+    tolerance_vnd: 1
+    failure_code: ARITHMETIC_MISMATCH
+    requires_human_review: true
+    legal_basis:
+      - {
+          document_id: VN-INV-123-2020-NDCP,
+          locator: "Trang 16-18 · Điều 10. Nội dung của hóa đơn",
+        }
+      - {
+          document_id: VN-INV-70-2025-NDCP,
+          locator: "Trang 10-11 · Điều 1 khoản 7 điểm b (sửa đổi khoản 6 Điều 10)",
+        }
+    tests:
+      {
+        positive: exact-line-sum,
+        negative: mismatched-line-sum,
+        boundary: one-vnd-tolerance,
+      }
+
+  - id: INV_TAX_EQUALS_LINE_TAX
+    version: 1.0.0-draft
+    status: draft
+    description: Invoice tax amount must match the sum of line tax amounts.
+    severity: high
+    tolerance_vnd: 1
+    failure_code: ARITHMETIC_MISMATCH
+    requires_human_review: true
+    legal_basis:
+      - {
+          document_id: VN-INV-123-2020-NDCP,
+          locator: "Trang 16-18 · Điều 10. Nội dung của hóa đơn",
+        }
+    tests:
+      {
+        positive: exact-tax-sum,
+        negative: mismatched-tax,
+        boundary: one-vnd-tolerance,
+      }
+
+  - id: INV_TOTAL_ARITHMETIC
+    version: 1.0.0-draft
+    status: draft
+    description: Total must equal subtotal plus tax and fees less discounts.
+    severity: high
+    tolerance_vnd: 1
+    failure_code: ARITHMETIC_MISMATCH
+    requires_human_review: true
+    legal_basis:
+      - {
+          document_id: VN-INV-123-2020-NDCP,
+          locator: "Trang 16-18 · Điều 10. Nội dung của hóa đơn",
+        }
+    tests:
+      {
+        positive: exact-total,
+        negative: mismatched-total,
+        boundary: one-vnd-tolerance,
+      }
+
+  - id: INV_DUPLICATE_IDENTITY
+    version: 1.0.0-draft
+    status: draft
+    description: Warn when seller, symbol and invoice number repeat in one tenant.
+    severity: high
+    failure_code: DUPLICATE_INVOICE
+    requires_human_review: true
+    disclaimer: A duplicate warning is not a conclusion of fraud or legal violation.
+    legal_basis:
+      - {
+          document_id: VN-INV-123-2020-NDCP,
+          locator: "Trang 14 · Điều 10 khoản 3. Số hóa đơn",
+        }
+    tests:
+      {
+        positive: unique-key,
+        negative: duplicate-key,
+        boundary: missing-key-part,
+      }
+
+  - id: VAT_RATE_REFERENCE_REQUIRED
+    version: 1.0.0-draft
+    status: draft
+    description: Tax rate requires supported product, date and exception evidence.
+    severity: high
+    failure_code: TAX_RATE_ANOMALY
+    requires_human_review: true
+    legal_basis:
+      - {
+          document_id: VN-VAT-48-2024-QH15,
+          locator: "Trang 8-10 · Điều 9. Thuế suất",
+        }
+      - {
+          document_id: VN-VAT-90-2025-QH15,
+          locator: "Trang 32-33 · Điều 4 (sửa đổi điểm a khoản 1 Điều 9 Luật Thuế GTGT)",
+        }
+      - {
+          document_id: VN-VAT-181-2025-NDCP,
+          locator: "Trang 18-26 · Điều 17-20. Thuế suất và điều kiện áp dụng",
+        }
+      - {
+          document_id: VN-VAT-359-2025-NDCP,
+          locator: "Trang 1-2 · Điều 1. Sửa đổi Nghị định 181/2025/NĐ-CP",
+        }
+      - {
+          document_id: VN-VAT-144-2026-NDCP,
+          locator: "Trang 1-3 · Điều 1. Sửa đổi Nghị định 181/2025/NĐ-CP",
+        }
+      - {
+          document_id: VN-VAT-69-2025-TTBTC,
+          locator: "Trang 4 và 14-15 · Điều 5 và Phụ lục I về tỷ lệ tính thuế GTGT",
+        }
+    tests:
+      {
+        positive: reviewed-rate,
+        negative: unsupported-rate,
+        boundary: effective-date,
+      }

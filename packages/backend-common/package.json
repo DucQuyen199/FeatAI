@@ -1,0 +1,14 @@
+{
+  "name": "@aicount/backend-common",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {"build":"tsc -p tsconfig.json","typecheck":"tsc -p tsconfig.json --noEmit"},
+  "dependencies": {
+    "@aicount/contracts":"*",
+    "express":"^5.2.1",
+    "zod":"^4.3.5"
+  }
+}
+

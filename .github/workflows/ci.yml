@@ -1,0 +1,45 @@
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - run: npm ci
+      - run: npm audit --audit-level=moderate
+      - run: npm run typecheck:backend
+      - run: npm run test:backend
+      - run: npm run build:backend
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements-dev.txt
+      - run: python scripts/verify_legal_corpus.py
+      - run: python scripts/check_rule_release.py
+      - run: pip-audit -r requirements-legal.txt
+      - run: ruff check scripts
+      - run: docker compose -f docker-compose.dev.yml config --quiet
+      - run: docker compose -f docker-compose.dev.yml build api
+      - run: docker compose -f docker-compose.dev.yml up -d --no-build postgres redis minio document-service rule-engine reconciliation-service anomaly-service legal-rag-service api
+      - run: npm run smoke:backend
+      - if: always()
+        run: docker compose -f docker-compose.dev.yml logs --tail=100 && docker compose -f docker-compose.dev.yml down -v
+  clients:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          {
+            node-version: "22",
+            cache: npm,
+            cache-dependency-path: "apps/*/package-lock.json",
+          }
+      - run: npm ci && npm audit --audit-level=moderate && npm run build
+        working-directory: apps/web
+      - run: npm ci && npm audit --audit-level=moderate && npm run typecheck && npx expo export --platform android
+        working-directory: apps/mobile

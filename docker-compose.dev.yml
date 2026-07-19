@@ -1,0 +1,206 @@
+name: aicount-guard
+
+x-node-service: &node-service
+  image: aicount-guard-backend:dev
+  build:
+    context: .
+    dockerfile: deploy/backend.dev.Dockerfile
+  restart: unless-stopped
+  init: true
+  environment: &service-env
+    APP_ENV: ${APP_ENV:-development}
+    NODE_ENV: development
+    CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
+    INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-internal-key-change-me}
+  volumes: &backend-source
+    - ./apps/api:/app/apps/api
+    - ./services:/app/services
+    - ./packages:/app/packages
+    - ./config:/app/config
+    - ./legal:/app/legal:ro
+  networks: [backend]
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aicount_guard}
+      POSTGRES_USER: ${POSTGRES_USER:-aicount}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    ports: ["5432:5432"]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-aicount} -d ${POSTGRES_DB:-aicount_guard}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports: ["6379:6379"]
+    volumes: [redis_data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-aicount_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-change_me_too}
+    command: server /data --console-address ":9001"
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [minio_data:/data]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  document-service:
+    <<: *node-service
+    command:
+      [
+        "npx",
+        "tsx",
+        "watch",
+        "--clear-screen=false",
+        "services/document-service/src/index.ts",
+      ]
+    environment:
+      <<: *service-env
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-aicount_minio}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-change_me_too}
+      MINIO_BUCKET: ${MINIO_BUCKET:-aicount-documents}
+      S3_SSE_ENABLED: ${S3_SSE_ENABLED:-false}
+      MAX_UPLOAD_BYTES: ${MAX_UPLOAD_BYTES:-20971520}
+      ACCOUNT_FILE_MAX_BYTES: ${ACCOUNT_FILE_MAX_BYTES:-26214400}
+    depends_on:
+      minio: { condition: service_healthy }
+
+  rule-engine:
+    <<: *node-service
+    command:
+      [
+        "npx",
+        "tsx",
+        "watch",
+        "--clear-screen=false",
+        "services/rule-engine/src/index.ts",
+      ]
+    environment:
+      <<: *service-env
+      RULE_ALLOW_DRAFT: ${RULE_ALLOW_DRAFT:-true}
+
+  reconciliation-service:
+    <<: *node-service
+    command:
+      [
+        "npx",
+        "tsx",
+        "watch",
+        "--clear-screen=false",
+        "services/reconciliation-service/src/index.ts",
+      ]
+
+  anomaly-service:
+    <<: *node-service
+    command:
+      [
+        "npx",
+        "tsx",
+        "watch",
+        "--clear-screen=false",
+        "services/anomaly-service/src/index.ts",
+      ]
+
+  legal-rag-service:
+    <<: *node-service
+    command:
+      [
+        "npx",
+        "tsx",
+        "watch",
+        "--clear-screen=false",
+        "services/legal-rag-service/src/index.ts",
+      ]
+    environment:
+      <<: *service-env
+      LEGAL_MANIFEST_PATH: /app/legal/manifest.json
+      LEGAL_CHUNKS_PATH: /app/legal/processed/legal_chunks.jsonl
+      LEGAL_INDEX_PATH: /app/legal/processed/corpus_index.json
+
+  api:
+    <<: *node-service
+    command:
+      ["npx", "tsx", "watch", "--clear-screen=false", "apps/api/src/index.ts"]
+    environment:
+      <<: *service-env
+      DATABASE_URL: postgresql://${POSTGRES_USER:-aicount}:${POSTGRES_PASSWORD:-change_me}@postgres:5432/${POSTGRES_DB:-aicount_guard}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-before-production-1234}
+      ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-30}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://localhost:8081}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@aicount.example.com}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-ChangeMe123!}
+      ACCOUNT_FILE_MAX_BYTES: ${ACCOUNT_FILE_MAX_BYTES:-26214400}
+      ACCOUNT_STORAGE_QUOTA_BYTES: ${ACCOUNT_STORAGE_QUOTA_BYTES:-524288000}
+      DOCUMENT_SERVICE_URL: http://document-service:8000
+      RULE_SERVICE_URL: http://rule-engine:8000
+      RECONCILIATION_SERVICE_URL: http://reconciliation-service:8000
+      ANOMALY_SERVICE_URL: http://anomaly-service:8000
+      LEGAL_SERVICE_URL: http://legal-rag-service:8000
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      document-service: { condition: service_started }
+      rule-engine: { condition: service_started }
+      reconciliation-service: { condition: service_started }
+      anomaly-service: { condition: service_started }
+      legal-rag-service: { condition: service_started }
+
+  web:
+    build:
+      context: apps/web
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: development
+      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-true}
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-true}
+      NEXT_TELEMETRY_DISABLED: "1"
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api/v1}
+    ports: ["3000:3000"]
+    volumes:
+      - ./apps/web:/app
+      - web_node_modules:/app/node_modules
+      - web_next_cache:/app/.next
+    depends_on: [api]
+    networks: [backend]
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  web_node_modules:
+  web_next_cache:

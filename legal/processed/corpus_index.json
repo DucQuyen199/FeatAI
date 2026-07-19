@@ -1,0 +1,14 @@
+{
+  "snapshot_date": "2026-07-20",
+  "manifest_sha256": "1abb0667f127692b56f8cea39df84b42fc3e015347383164dc3e495450bd1e2e",
+  "documents_in_manifest": 31,
+  "documents_indexed": 31,
+  "documents_excluded": [],
+  "chunks": 4121,
+  "pages_excluded_non_content_or_low_quality": 2,
+  "chunking": {
+    "unit": "pdf_page",
+    "max_chars": 1800,
+    "overlap": 220
+  }
+}

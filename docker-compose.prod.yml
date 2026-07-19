@@ -1,0 +1,126 @@
+services:
+  postgres:
+    ports: !override []
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+
+  redis:
+    ports: !override []
+
+  minio:
+    ports: !override []
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+
+  document-service:
+    image: aicount-guard-backend:typescript-express
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    command: ["node", "services/document-service/dist/index.js"]
+    volumes: !override []
+    environment:
+      APP_ENV: production
+      NODE_ENV: production
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+
+  rule-engine:
+    image: aicount-guard-backend:typescript-express
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    command: ["node", "services/rule-engine/dist/index.js"]
+    volumes: !override []
+    environment:
+      APP_ENV: production
+      NODE_ENV: production
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      RULE_ALLOW_DRAFT: "false"
+
+  reconciliation-service:
+    image: aicount-guard-backend:typescript-express
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    command: ["node", "services/reconciliation-service/dist/index.js"]
+    volumes: !override []
+    environment:
+      APP_ENV: production
+      NODE_ENV: production
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+
+  anomaly-service:
+    image: aicount-guard-backend:typescript-express
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    command: ["node", "services/anomaly-service/dist/index.js"]
+    volumes: !override []
+    environment:
+      APP_ENV: production
+      NODE_ENV: production
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+
+  legal-rag-service:
+    image: aicount-guard-backend:typescript-express
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    command: ["node", "services/legal-rag-service/dist/index.js"]
+    volumes: !override []
+    environment:
+      APP_ENV: production
+      NODE_ENV: production
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      LEGAL_MANIFEST_PATH: /app/legal/manifest.json
+      LEGAL_CHUNKS_PATH: /app/legal/processed/legal_chunks.jsonl
+      LEGAL_INDEX_PATH: /app/legal/processed/corpus_index.json
+
+  api:
+    image: aicount-guard-backend:typescript-express
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    command: ["node", "apps/api/dist/index.js"]
+    volumes: !override []
+    ports: !override []
+    environment:
+      APP_ENV: production
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:?INTERNAL_API_KEY is required}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:?BOOTSTRAP_ADMIN_EMAIL is required}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?BOOTSTRAP_ADMIN_PASSWORD is required}
+      CORS_ORIGINS: https://${DOMAIN:?DOMAIN is required}
+
+  web:
+    build:
+      context: apps/web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://${DOMAIN:?DOMAIN is required}/api/v1
+    volumes: !override []
+    ports: !override []
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: https://${DOMAIN:?DOMAIN is required}/api/v1
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN is required}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api, web]
+    networks: [backend]
+
+volumes:
+  caddy_data:
+  caddy_config:

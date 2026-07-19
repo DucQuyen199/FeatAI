@@ -1,0 +1,2 @@
+-r requirements-legal.txt
+easyocr>=1.7,<2

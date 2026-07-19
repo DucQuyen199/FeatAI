@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HDon>
+  <DLHDon>
+    <TTChung>
+      <SHDon>0000123</SHDon>
+      <KHHDon>1C26TAA</KHHDon>
+      <NLap>2026-07-19</NLap>
+    </TTChung>
+    <NDHDon>
+      <NBan><Ten>Công ty Bán</Ten><MST>0101234567</MST></NBan>
+      <DSHHDVu>
+        <HHDVu><THHDVu>Dịch vụ kiểm thử</THHDVu><SLuong>2</SLuong><DGia>500000</DGia><ThTien>1000000</ThTien><TThue>100000</TThue></HHDVu>
+      </DSHHDVu>
+      <TToan><TgTCThue>1000000</TgTCThue><TgTThue>100000</TgTThue><TgTTTBSo>1100000</TgTTTBSo><DVTTe>VND</DVTTe></TToan>
+    </NDHDon>
+  </DLHDon>
+</HDon>

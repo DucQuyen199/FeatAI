@@ -1,0 +1,41 @@
+{
+  "name": "aicount-guard-backend",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/contracts/typescript",
+    "packages/backend-common",
+    "services/document-service",
+    "services/rule-engine",
+    "services/reconciliation-service",
+    "services/anomaly-service",
+    "services/legal-rag-service",
+    "apps/api"
+  ],
+  "scripts": {
+    "build:shared": "npm run build -w @aicount/contracts && npm run build -w @aicount/backend-common",
+    "build:backend": "npm run build:shared && npm run build -w @aicount/document-service && npm run build -w @aicount/rule-engine && npm run build -w @aicount/reconciliation-service && npm run build -w @aicount/anomaly-service && npm run build -w @aicount/legal-rag-service && npm run build -w @aicount/api",
+    "typecheck:backend": "npm run build:shared && npm run typecheck -w @aicount/document-service && npm run typecheck -w @aicount/rule-engine && npm run typecheck -w @aicount/reconciliation-service && npm run typecheck -w @aicount/anomaly-service && npm run typecheck -w @aicount/legal-rag-service && npm run typecheck -w @aicount/api",
+    "test:backend": "npm run build:shared && vitest run tests/backend",
+    "test:ui": "node tests/ui-smoke.mjs",
+    "smoke:backend": "node scripts/smoke-backend.mjs",
+    "dev:api": "tsx apps/api/src/index.ts"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.10.1",
+    "@types/pg": "^8.15.6",
+    "@types/supertest": "^6.0.3",
+    "@types/swagger-ui-express": "^4.1.8",
+    "playwright-core": "^1.61.1",
+    "prettier": "^3.9.5",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.6",
+    "typescript": "^6.0.3",
+    "vitest": "^4.0.18"
+  }
+}

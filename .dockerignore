@@ -1,0 +1,12 @@
+.git
+.env
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/.next
+**/.expo
+legal/processed/*
+!legal/processed/legal_chunks.jsonl
+!legal/processed/corpus_index.json
+!legal/processed/extraction_report.json
+tests

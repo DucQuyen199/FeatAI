@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "AICount Guard",
+    "slug": "aicount-guard",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "aicountguard",
+    "userInterfaceStyle": "automatic",
+    "plugins": ["expo-router", "expo-secure-store", "expo-document-picker"],
+    "android": { "package": "vn.aicount.guard" },
+    "ios": { "bundleIdentifier": "vn.aicount.guard", "supportsTablet": true }
+  }
+}

@@ -1,0 +1,1 @@
+{"name":"@aicount/rule-engine","version":"2.0.0","type":"module","main":"dist/index.js","scripts":{"build":"tsc -p tsconfig.json","typecheck":"tsc -p tsconfig.json --noEmit"},"dependencies":{"@aicount/backend-common":"*","@aicount/contracts":"*","express":"^5.2.1","yaml":"^2.8.2","zod":"^4.3.5"}}
